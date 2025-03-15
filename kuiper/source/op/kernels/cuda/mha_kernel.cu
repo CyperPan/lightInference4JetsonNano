@@ -1,7 +1,9 @@
 #include <base/cuda_config.h>
 #include <tensor/tensor.h>
+#include <cfloat>
 #include <cub/cub.cuh>
 #include "mha_kernel.cuh"
+#include <base/tick.h>
 namespace kernel {
 constexpr static int thread_num = 256;
 __device__ void softmax_gpu(float* __restrict__ x, int size) {
@@ -44,6 +46,7 @@ __device__ void softmax_gpu(float* __restrict__ x, int size) {
   }
 }
 
+
 __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float* query,
                                             float* score_ptr, float* output, float* key_cache,
                                             float* value_cache, int32_t kv_dim, int32_t kv_mul,
@@ -54,38 +57,32 @@ __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float*
     return;
   }
 
-  float scale = 1.f / sqrtf(head_size);
+  extern __shared__ float s_query_head[];
+  float scale = 1.f / sqrtf(float(head_size));
   float* query_head = query + head * head_size;
+
+  // 预加载query到共享内存
+  for (int i = threadIdx.x; i < head_size; i += blockDim.x) {
+    s_query_head[i] = query_head[i];
+  }
+  __syncthreads();
+
   float* score_head = score_ptr + head * seq_len;
+  // head当前的注意力头索引，kv_mul用于gqa，head_size表示一个自注意力头的维度
+  // kv_dim = head_size * head_num，多头自注意力情况下的key,value 维度
+  // kv_dim = head_size * head_num / kv_num，GQA情况下的key,value 维度
   int head_offset = (head / kv_mul) * head_size;
+  // 计算自注意力分数
   for (int t = threadIdx.x; t <= pos; t += blockDim.x) {
     float* key_head = key_cache + layer_offset + t * kv_dim + head_offset;
-    /**
-     *  在Meta的Llama注意力机制实现中，head_dim等于head_size。
-     *
-     *  xq = xq.transpose(1, 2)  # 转置后形状为 (heads, sequence_length, head_dim)
-     *                            # 如果sequence_length为1，则形状简化为 (heads, head_dim)
-     *  keys = keys.transpose(1, 2)  # 同样转置keys，得到形状 (heads, sequence_length, head_dim)
-     *                              # 若sequence_length为1，则形状也简化为 (heads, head_dim)
-     *
-     *  在我们的代码实现中，计算公式为 (head / kv_mul) * head_size。
-     *  其中，在多头注意力（MHA）机制里，kv_mul的值为1，
-     *  因此计算得到的head_offset就等于head * head_size。
-     *
-     *  这里的head_offset用于定位到当前处理的头部（head），而t * kv_dim (即t *
-     * dim)则用于定位到历史的key向量。
-     */
 
-    // query @ key 逐个头相乘，从上面的代码可以看出
     float score = 0.0f;
-#pragma unroll
     for (int i = 0; i < head_size; i += 4) {
-      float4 key_head_float4 = *reinterpret_cast<float4*>(key_head + i);
-      float4 query_head_float4 = *reinterpret_cast<float4*>(query_head + i);
-      score += key_head_float4.x * query_head_float4.x;
-      score += key_head_float4.y * query_head_float4.y;
-      score += key_head_float4.z * query_head_float4.z;
-      score += key_head_float4.w * query_head_float4.w;
+      float4 key_val = *reinterpret_cast<float4*>(key_head + i);
+      float4 query_val = *reinterpret_cast<float4*>(s_query_head + i);
+
+      score += key_val.x * query_val.x + key_val.y * query_val.y + key_val.z * query_val.z +
+               key_val.w * query_val.w;
     }
 
     score *= scale;
@@ -97,9 +94,9 @@ __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float*
   __syncthreads();
 
   float* output_head = output + head * head_size;
+  // 使用自注意力分数对value矩阵加权
   for (int i = threadIdx.x; i < head_size; i += blockDim.x) {
     float value = 0.0f;
-#pragma unroll
     for (int t = 0; t <= pos; t++) {
       float* value_head = value_cache + layer_offset + t * kv_dim + head_offset;
       float score = score_head[t];
@@ -124,7 +121,7 @@ void mha_kernel_cu(int32_t pos, int32_t head_num, int32_t layer_index, int32_t s
   float* value_cache = const_cast<float*>(value_cache_tensor.ptr<float>());
 
   cudaStream_t stream = config->stream;
-  multi_head_attention_kernel<<<head_num, thread_num, 0, stream>>>(
+  multi_head_attention_kernel<<<head_num, thread_num, head_size * sizeof(float), stream>>>(
       pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
       head_size, layer_offset);
 }
