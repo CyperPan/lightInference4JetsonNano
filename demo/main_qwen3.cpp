@@ -48,7 +48,7 @@ int32_t generate(const model::Qwen3Model& model, const std::string& sentence, in
 
 std::string fill_template(const std::string& content) {
   const std::string format =
-      "<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
+      "<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n";
   std::string result = format;
   size_t pos = result.find("%s");
   if (pos != std::string::npos) {
@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
   const std::string& sentence = fill_template(hi);
   auto start = std::chrono::steady_clock::now();
   fflush(stdout);
-  int steps = generate(model, sentence, 128, true);
+  int steps = generate(model, sentence, 2560, true);
   auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration<double>(end - start).count();
   printf("\nsteps:%d\n", steps);
