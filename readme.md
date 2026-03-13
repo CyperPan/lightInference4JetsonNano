@@ -1,135 +1,223 @@
-# KuiperLLama 动手自制大模型推理框架，支持LLama2/3和Qwen2.5
-> News：新课发布，《动手自制大模型推理框架》，全手写cuda算子，课程框架支持LLama2和3.x以及Qwen2.5模型
+# LightInference — Lightweight LLM Inference Engine for Edge Devices
 
-Hi，各位朋友们好！我是 KuiperInfer 的作者。KuiperInfer 作为一门开源课程，迄今已经在 GitHub 上已斩获 2.5k star。
-如今在原课程的基础上，**我们全新推出了《动手自制大模型推理框架》， 新课程支持Llama系列大模型（包括最新的LLama3.2）以及Qwen2.5系列大模型，同时支持 Cuda 加速和 Int8 量化**，自推出以来便广受好评。
+A high-performance, from-scratch LLM inference framework written in **C++17 / CUDA**, optimized for **NVIDIA Jetson** edge devices. Supports LLaMA 2/3, Qwen 2.5/3 model families with INT8 quantization and CUDA acceleration.
 
-## 《动手自制大模型推理框架》课程目录：
-https://tvle9mq8jh.feishu.cn/docx/AGb0dpqwfohQ9oxx4QycqbCjnJh
-## 《动手自制大模型推理框架》课程优势
+> Tested on **NVIDIA Jetson Orin Nano (8GB)** with aarch64 architecture.
 
-1. 采用最新的C++ 20标准去写代码，统一、美观的代码风格，良好的错误处理；
-2. 优秀的项目管理形式，我们采用CMake+Git的方式管理项目，接轨大厂；
-3. 授人以渔，教大家怎么设计一个现代C++项目，同时教大家怎么用单元测试和Benchmark去测试验证自己的项目； 
-4. CPU算子和CUDA双后端实现，对时新的大模型（LLama3和Qwen系列）有非常好的支持。
+---
 
+## Highlights
 
-**如果你对大模型推理感兴趣，想要深入了解并掌握相关技术，想在校招、秋招面试当中脱颖而出，那么这门《动手自制大模型推理框架》课程绝对不容错过。快来加入我们，一起开启学习之旅吧！
-    感兴趣的同学欢迎扫一扫课程下方二维码或者添加微信 lyrry1997 参加课程**
+- **Pure C++/CUDA implementation** — all Transformer operators hand-written, no dependency on PyTorch/TensorRT
+- **Custom CUDA kernels** — MatMul, Multi-Head Attention, RoPE, RMSNorm, SwiGLU, Embedding, Softmax
+- **INT8 group quantization** — reduce memory footprint for edge deployment while preserving accuracy
+- **KV-Cache** — avoid redundant computation during autoregressive decoding
+- **CUDA memory pool** — pre-allocated GPU memory management to eliminate runtime `cudaMalloc` overhead
+- **Memory-mapped model loading** — efficient `mmap`-based weight loading for large models
+- **Device-agnostic design** — CPU (Armadillo + OpenBLAS) and CUDA backends with unified operator interface
+- **Multi-model support** — LLaMA 2, LLaMA 3/3.2, Qwen 2.5, Qwen 3
+- **HTTP serving** — FastAPI-based inference server with streaming (SSE) support
+- **Docker support** — containerized build environment
 
-<img src="imgs/me.jpg"  />
+---
 
-
-
-## 《动手自制大模型推理框架》课程项目运行效果
-> LLama1.1b fp32模型，视频无加速，运行平台为Nvidia 3060 laptop，速度为60.34 token/s
-
-![](./imgs/do.gif)
-
-
-
-## 第三方依赖
-> 借助企业级开发库，更快地搭建出大模型推理框架
-1. google glog https://github.com/google/glog
-2. google gtest https://github.com/google/googletest
-3. sentencepiece https://github.com/google/sentencepiece
-4. armadillo + openblas https://arma.sourceforge.net/download.html
-5. Cuda Toolkit
-
-
-## 模型下载地址
-1. LLama2 https://pan.baidu.com/s/1PF5KqvIvNFR8yDIY1HmTYA?pwd=ma8r 或 https://huggingface.co/fushenshen/lession_model/tree/main
-
-2. Tiny LLama 
-- TinyLLama模型 https://huggingface.co/karpathy/tinyllamas/tree/main
-- TinyLLama分词器 https://huggingface.co/yahma/llama-7b-hf/blob/main/tokenizer.model
-
-3. Qwen2.5/LLama
-   
-   请参考本项目配套课程，课程参加方式请看本文开头。
-
-
-## 模型导出
-```shell
-python export.py llama2_7b.bin --meta-llama path/to/llama/model/7B
-# 使用--hf标签从hugging face中加载模型， 指定--version3可以导出量化模型
-# 其他使用方法请看export.py中的命令行参数实例
-```
-
-
-## 编译方法
-```shell
-  mkdir build 
-  cd build
-  # 需要安装上述的第三方依赖
-  cmake ..
-  # 或者开启 USE_CPM 选项，自动下载第三方依赖
-  cmake -DUSE_CPM=ON ..
-  make -j16
-```
-
-## 生成文本的方法
-```shell
-./llama_infer llama2_7b.bin tokenizer.model
+## Architecture
 
 ```
-
-# LLama3.2 推理
-
-- 以 meta-llama/Llama-3.2-1B 为例，huggingface 上下载模型：
-```shell
-export HF_ENDPOINT=https://hf-mirror.com
-pip3 install huggingface-cli
-huggingface-cli download --resume-download meta-llama/Llama-3.2-1B --local-dir meta-llama/Llama-3.2-1B --local-dir-use-symlinks False
+┌─────────────────────────────────────────────────────────┐
+│                    HTTP API (FastAPI)                    │
+├─────────────────────────────────────────────────────────┤
+│                   Model Layer                           │
+│         LLaMA2Model / LLaMA3Model / Qwen2/3Model       │
+├─────────────────────────────────────────────────────────┤
+│                  Operator Layer                         │
+│  Embedding │ RMSNorm │ RoPE │ MHA │ SwiGLU │ MatMul    │
+├──────────────────────┬──────────────────────────────────┤
+│   CPU Kernels        │       CUDA Kernels               │
+│  (Armadillo/BLAS)    │  (Float4 vectorization, CUB,     │
+│                      │   shared memory, block reduce)   │
+├──────────────────────┴──────────────────────────────────┤
+│                 Memory Management                       │
+│   DeviceAllocator │ CUDA MemPool │ mmap │ Buffer/Tensor │
+└─────────────────────────────────────────────────────────┘
 ```
-- 导出模型：
-```shell
+
+### Inference Pipeline
+
+```
+Input Text
+  → Tokenizer (SentencePiece / BPE-Tiktoken)
+  → Embedding Lookup
+  → N × Transformer Block:
+      → RMSNorm → Q/K/V Projection → RoPE → Multi-Head Attention (+ KV-Cache) → Residual
+      → RMSNorm → FFN (SwiGLU: W1, W2, W3) → Residual
+  → Final RMSNorm → Linear → Sampling
+  → Output Token
+```
+
+---
+
+## Project Structure
+
+```
+├── kuiper/
+│   ├── include/                # Header files
+│   │   ├── base/               # Buffer, Allocator, DeviceType
+│   │   ├── model/              # Model definitions (LLaMA, Qwen)
+│   │   ├── op/                 # Layer interfaces, Encoder
+│   │   ├── sampler/            # Sampling strategies
+│   │   └── tensor/             # Tensor data structure
+│   └── source/                 # Implementations
+│       ├── base/               # CPU/CUDA allocators, memory pool
+│       ├── model/              # Model forward pass logic
+│       ├── op/
+│       │   └── kernels/
+│       │       ├── cpu/        # CPU kernels (Armadillo + OpenBLAS)
+│       │       └── cuda/       # CUDA kernels (hand-written)
+│       ├── sampler/
+│       └── tensor/
+├── demo/                       # Inference entry points
+├── server/                     # FastAPI HTTP server
+├── test/                       # Unit tests (GTest)
+├── tools/                      # Model export scripts (HuggingFace → binary)
+├── dockerfile                  # Containerized build
+└── CMakeLists.txt
+```
+
+---
+
+## Key Technical Details
+
+### CUDA Kernel Optimizations
+
+| Kernel | Key Techniques |
+|--------|---------------|
+| **MatMul** | Float4 vectorized loads, CUB block reduction, per-row parallelism |
+| **MatMul (INT8)** | On-the-fly group dequantization, fused scale multiplication |
+| **Multi-Head Attention** | Query preload to shared memory, causal masking, GQA support |
+| **RMSNorm** | Float4 vectorization, block reduction, batched variant |
+| **RoPE** | Per-head-pair parallelism, separate LLaMA3 / Qwen2 implementations |
+| **Softmax** | Numerically stable (max subtraction), parallel reduction |
+
+### Memory Management
+
+- **CUDA Memory Pool**: pre-allocates GPU buffers and tracks availability via hash maps, eliminating per-inference `cudaMalloc`/`cudaFree` overhead
+- **mmap Model Loading**: maps model files directly into virtual address space, enabling lazy page-fault-driven loading without copying entire weights into RAM
+- **Zero-Copy Weights**: model weight buffers wrap `mmap` pointers directly — no redundant allocation
+
+### INT8 Quantization
+
+- Group-based quantization with configurable `group_size`
+- Per-group scale factors stored alongside INT8 weights
+- CUDA kernel performs fused dequantization during MatMul: `output += input × scale × weight_int8`
+
+### Grouped Query Attention (GQA)
+
+- Supports models where `num_q_heads > num_kv_heads`
+- Multiple query heads share the same KV head via `kv_mul = head_num / kv_head_num`
+- Reduces KV-Cache memory by up to 8× compared to standard MHA
+
+---
+
+## Supported Models
+
+| Model | Sizes | Tokenizer | Notes |
+|-------|-------|-----------|-------|
+| LLaMA 2 | 7B–70B | SentencePiece | Original architecture |
+| LLaMA 3 / 3.2 | 1B, 8B, 70B | BPE (Tiktoken) | GQA, updated RoPE |
+| Qwen 2.5 | 0.5B–72B | BPE (Tiktoken) | GQA, different RoPE freq |
+| Qwen 3 | Various | BPE (Tiktoken) | Chain-of-thought mode |
+
+---
+
+## Build & Run
+
+### Prerequisites
+
+- NVIDIA GPU with CUDA support (tested on Jetson Orin Nano, CUDA 12.x)
+- CMake ≥ 3.16
+- C++17 compiler with CUDA support
+
+### Dependencies
+
+| Library | Purpose |
+|---------|---------|
+| [Google glog](https://github.com/google/glog) | Logging |
+| [Google Test](https://github.com/google/googletest) | Unit testing |
+| [SentencePiece](https://github.com/google/sentencepiece) | LLaMA 2 tokenizer |
+| [Armadillo](https://arma.sourceforge.net/) + OpenBLAS | CPU matrix operations |
+| CUDA Toolkit | GPU acceleration |
+
+### Compile
+
+```bash
+mkdir build && cd build
+
+# Auto-download dependencies via CPM
+cmake -DUSE_CPM=ON -DQWEN2_SUPPORT=ON ..
+make -j$(nproc)
+
+# Other model options:
+#   -DLLAMA3_SUPPORT=ON    for LLaMA 3/3.2
+#   -DQWEN3_SUPPORT=ON     for Qwen 3
+```
+
+### Export Model Weights
+
+```bash
+# Example: Qwen2.5-0.5B
+python3 tools/export_qwen2.py Qwen2.5-0.5B.bin --hf=Qwen/Qwen2.5-0.5B
+
+# Example: LLaMA 3.2-1B
 python3 tools/export.py Llama-3.2-1B.bin --hf=meta-llama/Llama-3.2-1B
 ```
-- 编译：
-```shell
-mkdir build 
-cd build
-# 开启 USE_CPM 选项，自动下载第三方依赖，前提是需要网络畅通
-cmake -DUSE_CPM=ON -DLLAMA3_SUPPORT=ON .. 
-make -j16
-```
-- 运行：
-```shell
-./build/demo/llama_infer Llama-3.2-1B.bin meta-llama/Llama-3.2-1B/tokenizer.json
-# 和 huggingface 推理的结果进行对比
-python3 hf_infer/llama3_infer.py
-```
 
-# Qwen2.5 推理
+### Run Inference
 
-- 以 Qwen2.5-0.5B 为例，huggingface 上下载模型：
-```shell
-export HF_ENDPOINT=https://hf-mirror.com
-pip3 install huggingface-cli
-huggingface-cli download --resume-download Qwen/Qwen2.5-0.5B --local-dir Qwen/Qwen2.5-0.5B --local-dir-use-symlinks False
-```
-- 导出模型：
-```shell
-python3 tools/export_qwen2.py Qwen2.5-0.5B.bin --hf=Qwen/Qwen2.5-0.5B
-```
-- 编译：
-```shell
-mkdir build 
-cd build
-# 开启 USE_CPM 选项，自动下载第三方依赖，前提是需要网络畅通
-cmake -DUSE_CPM=ON -DQWEN2_SUPPORT=ON .. 
-make -j16
-```
-- 运行：
-```shell
+```bash
+# Qwen 2.5
 ./build/demo/qwen_infer Qwen2.5-0.5B.bin Qwen/Qwen2.5-0.5B/tokenizer.json
-# 和 huggingface 推理的结果进行对比
-python3 hf_infer/qwen2_infer.py
+
+# LLaMA 3.2
+./build/demo/llama_infer Llama-3.2-1B.bin meta-llama/Llama-3.2-1B/tokenizer.json
 ```
 
-## Qwen3推理
-和上面同理，我们先从huggingface仓库中将模型下载到本地。
-1. tools/export_qwen3/load.py中导出为pth，模型的输入`model_name`和输出地址`output_file`依次需要填写；
-2. 导出pth格式的模型后，再用同文件夹下的write_bin.py导出qwen.bin；
-3. 用CMake选项`QWEN3_SUPPORT`重新编译项目，其他步骤就都是一样的了。
+### HTTP Server
+
+```bash
+pip install -r requirements.txt
+export MODEL_NAME=Qwen/Qwen2.5-0.5B
+python -m server.app
+
+# API endpoints:
+#   GET  /health              — health check
+#   POST /generate            — text generation
+#   POST /generate_stream     — streaming generation (SSE)
+```
+
+---
+
+## Testing
+
+```bash
+cd build
+ctest --output-on-failure
+```
+
+Unit tests cover tensor operations, CUDA kernel correctness (validated against CPU reference), buffer management, and model-level inference.
+
+---
+
+## Third-Party Dependencies
+
+- [Google glog](https://github.com/google/glog) — Logging framework
+- [Google Test](https://github.com/google/googletest) — Testing framework
+- [SentencePiece](https://github.com/google/sentencepiece) — Tokenizer (LLaMA 2)
+- [Armadillo](https://arma.sourceforge.net/) + OpenBLAS — CPU linear algebra
+- [abseil-cpp](https://github.com/abseil/abseil-cpp) — Utilities (LLaMA 3 / Qwen)
+- [re2](https://github.com/google/re2) — Regex (BPE tokenizer)
+- [nlohmann/json](https://github.com/nlohmann/json) — JSON parsing
+
+## License
+
+This project is for educational and research purposes.

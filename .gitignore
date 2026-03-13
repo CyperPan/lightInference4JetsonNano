@@ -1,0 +1,35 @@
+# Build
+build/
+cmake-build-*/
+lib/*.so
+lib/*.a
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+compile_commands.json
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Model weights
+*.bin
+*.pth
+*.onnx
+*.gguf
+models/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
