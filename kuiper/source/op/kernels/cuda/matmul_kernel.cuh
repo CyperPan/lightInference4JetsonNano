@@ -7,6 +7,16 @@ void matmul_kernel_cu(const tensor::Tensor& input, const tensor::Tensor& weight,
                       const tensor::Tensor& output, float scale = 1.f,
                       const CudaConfig* config = nullptr);
 
+// FP16 hand-written kernel with half2 vectorization
+void matmul_kernel_cu_fp16(const tensor::Tensor& input, const tensor::Tensor& weight,
+                           const tensor::Tensor& output, float scale = 1.f,
+                           const CudaConfig* config = nullptr);
+
+// cuBLAS FP16 with Tensor Core support (optimal for Jetson Orin Nano SM 8.7)
+void matmul_kernel_cublas_fp16(const tensor::Tensor& input, const tensor::Tensor& weight,
+                               const tensor::Tensor& output, float scale = 1.f,
+                               const CudaConfig* config = nullptr);
+
 void matmul_kernel_cu_qint8(const tensor::Tensor& input, const tensor::Tensor& weight,
                             const tensor::Tensor& output, int32_t group_size,
                             const tensor::Tensor& scale, const CudaConfig* config = nullptr);

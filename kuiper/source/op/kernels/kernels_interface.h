@@ -71,5 +71,20 @@ SwigluKernel get_swiglu_kernel(base::DeviceType device_type, void* stream = null
 ScaleSumKernel get_scale_sum_kernel(base::DeviceType device_type);
 
 RMSNormKernelDim get_rmsnorm_dim_kernel(base::DeviceType device_type);
+
+// FP16 kernel dispatchers for Jetson Orin Nano optimization
+AddKernel get_add_kernel_fp16(base::DeviceType device_type);
+
+EmbeddingKernel get_emb_kernel_fp16(base::DeviceType device_type);
+
+MatmulKernel get_matmul_kernel_fp16(base::DeviceType device_type);
+
+MatmulKernel get_matmul_kernel_cublas_fp16(base::DeviceType device_type);
+
+MHAKernel get_mha_kernel_fp16(base::DeviceType device_type);
+
+RMSNormKernel get_rmsnorm_kernel_fp16(base::DeviceType device_type);
+
+SwigluKernel get_swiglu_kernel_fp16(base::DeviceType device_type);
 }  // namespace kernel
 #endif  // KERNELS_INTERFACE_H

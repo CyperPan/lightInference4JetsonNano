@@ -4,5 +4,8 @@
 namespace kernel {
 void swiglu_kernel_cu(const tensor::Tensor& input1, const tensor::Tensor& input2,
                       const tensor::Tensor& output, void* stream);
+
+void swiglu_kernel_cu_fp16(const tensor::Tensor& input1, const tensor::Tensor& input2,
+                           const tensor::Tensor& output, void* stream);
 }
 #endif  // SWIGLU_KERNEL_CU_CUH

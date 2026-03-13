@@ -5,9 +5,14 @@
 namespace kernel {
 struct CudaConfig {
   cudaStream_t stream = nullptr;
+  cublasHandle_t cublas_handle = nullptr;
+  bool use_fp16 = false;
   ~CudaConfig() {
     if (stream) {
       cudaStreamDestroy(stream);
+    }
+    if (cublas_handle) {
+      cublasDestroy(cublas_handle);
     }
   }
 };

@@ -140,4 +140,68 @@ ScaleSumKernel get_scale_sum_kernel(base::DeviceType device_type) {
   }
 }
 
+// FP16 kernel dispatchers for Jetson Orin Nano optimization
+AddKernel get_add_kernel_fp16(base::DeviceType device_type) {
+  if (device_type == base::DeviceType::kDeviceCUDA) {
+    return add_kernel_cu_fp16;
+  } else {
+    LOG(FATAL) << "FP16 add kernel only supported on CUDA.";
+    return nullptr;
+  }
+}
+
+EmbeddingKernel get_emb_kernel_fp16(base::DeviceType device_type) {
+  if (device_type == base::DeviceType::kDeviceCUDA) {
+    return emb_kernel_cu_fp16;
+  } else {
+    LOG(FATAL) << "FP16 embedding kernel only supported on CUDA.";
+    return nullptr;
+  }
+}
+
+MatmulKernel get_matmul_kernel_fp16(base::DeviceType device_type) {
+  if (device_type == base::DeviceType::kDeviceCUDA) {
+    return matmul_kernel_cu_fp16;
+  } else {
+    LOG(FATAL) << "FP16 matmul kernel only supported on CUDA.";
+    return nullptr;
+  }
+}
+
+MatmulKernel get_matmul_kernel_cublas_fp16(base::DeviceType device_type) {
+  if (device_type == base::DeviceType::kDeviceCUDA) {
+    return matmul_kernel_cublas_fp16;
+  } else {
+    LOG(FATAL) << "cuBLAS FP16 matmul kernel only supported on CUDA.";
+    return nullptr;
+  }
+}
+
+MHAKernel get_mha_kernel_fp16(base::DeviceType device_type) {
+  if (device_type == base::DeviceType::kDeviceCUDA) {
+    return mha_kernel_cu_fp16;
+  } else {
+    LOG(FATAL) << "FP16 MHA kernel only supported on CUDA.";
+    return nullptr;
+  }
+}
+
+RMSNormKernel get_rmsnorm_kernel_fp16(base::DeviceType device_type) {
+  if (device_type == base::DeviceType::kDeviceCUDA) {
+    return rmsnorm_kernel_cu_fp16;
+  } else {
+    LOG(FATAL) << "FP16 rmsnorm kernel only supported on CUDA.";
+    return nullptr;
+  }
+}
+
+SwigluKernel get_swiglu_kernel_fp16(base::DeviceType device_type) {
+  if (device_type == base::DeviceType::kDeviceCUDA) {
+    return swiglu_kernel_cu_fp16;
+  } else {
+    LOG(FATAL) << "FP16 swiglu kernel only supported on CUDA.";
+    return nullptr;
+  }
+}
+
 }  // namespace kernel

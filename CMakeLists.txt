@@ -13,6 +13,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 14)
 
+# Jetson Orin Nano optimizations
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --use_fast_math")
+set(CMAKE_CUDA_ARCHITECTURES 87)
+
 option(LLAMA3_SUPPORT OFF)
 if (LLAMA3_SUPPORT)
   message(STATUS "LLAMA3 SUPPORT")
@@ -100,7 +104,7 @@ aux_source_directory(kuiper/source/sampler DIR_SAMPLE)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(llama SHARED ${DIR_TENSOR} ${DIR_BASE} ${DIR_OP} ${DIR_KERNEL} ${DIR_MODEL} ${DIR_KERNEL_CPU} ${DIR_KERNEL_CUDA} ${DIR_KERNEL} ${DIR_SAMPLE})
-target_link_libraries(llama sentencepiece glog::glog gtest gtest_main pthread cudart armadillo)
+target_link_libraries(llama sentencepiece glog::glog gtest gtest_main pthread cudart cublas armadillo)
 target_link_directories(llama PUBLIC ${CMAKE_CUDA_COMPILER_LIBRARY_ROOT}/lib64)
 
 target_include_directories(llama PUBLIC ${glog_INCLUDE_DIR})
